@@ -1,0 +1,13 @@
+language: node_js
+
+node_js:
+    - "5"
+
+before_script:
+    - npm install --dev
+    - npm install coveralls
+
+script:
+    - npm test
+    - npm run cov
+    - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
