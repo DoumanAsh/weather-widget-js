@@ -6,8 +6,9 @@
   "repository": "https://github.com/DoumanAsh/weather-widget-js",
   "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "jshint index.js src/ static/js || true"
+    "test": "mocha",
+    "lint": "jshint index.js src/ static/js test/ || true",
+    "cov": " node ./node_modules/istanbul/lib/cli.js cover --include-all-sources node_modules/mocha/bin/_mocha && node --use_strict ./node_modules/istanbul/lib/cli.js report --root coverage lcov html text-summary"
   },
   "author": "Douman",
   "license": "MIT",
@@ -17,5 +18,9 @@
     "redis": "^2.6.2",
     "request": "^2.74.0",
     "stylus": "^0.54.5"
+  },
+  "devDependencies": {
+    "istanbul": "^0.4.5",
+    "mocha": "^3.0.2"
   }
 }

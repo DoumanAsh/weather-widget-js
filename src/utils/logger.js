@@ -20,11 +20,11 @@ function stack_trace() {
 if (process.env.LAZY_LOG === "true") {
     module.exports = function(...args) {
         const frame = stack_trace()[2];
-        console.log("[%s] %s:%s - %s",
-                    (new Date()).toLocaleTimeString(),
-                    path.relative(__root_dir, frame.getFileName()),
-                    frame.getLineNumber(),
-                    util.format(...args));
+        console.info("[%s] %s:%s - %s",
+                     (new Date()).toLocaleTimeString(),
+                     path.relative(__root_dir, frame.getFileName()),
+                     frame.getLineNumber(),
+                     util.format(...args));
     };
 }
 else {
