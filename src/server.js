@@ -1,6 +1,6 @@
 'use strict';
 const express = require('express');
-const trace = require('./logger.js');
+const trace = require('./utils').logger;
 const app = express();
 
 app.set('views', __from_root('views'));
