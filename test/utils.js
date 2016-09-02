@@ -1,6 +1,7 @@
 'use strict';
 const assert = require('assert');
 const path = require('path');
+const mock = require('mock-require');
 
 global.__root_dir = path.join(__dirname, '..');
 global.__from_root = function(...args){
@@ -56,7 +57,6 @@ describe('logger:', function() {
 
 describe('geo:', function() {
     const geo_path = '../src/utils/geo.js';
-    const mock = require('mock-require');
 
     var stub_data = {
         error: null,
@@ -167,7 +167,7 @@ describe('geo:', function() {
         stub_data.body = JSON.stringify(data);
 
         return geo.get_coords_city(test_city)
-                  .then(function(result) {
+                  .then(function() {
                       assert(false, 'Promise SHOULD not be resolved');
                   })
                   .catch(function(error) {
@@ -175,7 +175,7 @@ describe('geo:', function() {
                   });
     });
 
-    it("Get valid geo info with HTTP response", function() {
+    it("Get valid geo info with bad HTTP response", function() {
         const test_city = 'Moscow';
 
         const data = {'status': 'BAD',
@@ -195,11 +195,193 @@ describe('geo:', function() {
         stub_data.error = new Error('Bad HTTP response');
 
         return geo.get_coords_city(test_city)
-                  .then(function(result) {
+                  .then(function() {
                       assert(false, 'Promise SHOULD not be resolved');
                   })
                   .catch(function(error) {
                       assert.equal(error.message, 'Bad HTTP response');
                   });
+    });
+});
+
+describe('db:', function() {
+    const db_path = '../src/utils/db.js';
+
+    var mock_get_data = {
+        expected_key: undefined,
+        err: null,
+        reply: null
+    };
+    var redis_mock_get = function(key, callback) {
+        if (mock_get_data.expected_key !== undefined) {
+            assert.strictEqual(mock_get_data.expected_key,
+                               key);
+        }
+        callback(mock_get_data.err, mock_get_data.reply);
+    };
+    var mock_set_data = {
+        expected_key: undefined,
+        expected_value: undefined,
+        err: null,
+        result: null
+    };
+    var redis_mock_set = function(key, value, callback) {
+        if (mock_set_data.expected_key !== undefined) {
+            assert.strictEqual(mock_set_data.expected_key,
+                               key);
+        }
+        if (mock_set_data.expected_value !== undefined) {
+            assert.strictEqual(mock_set_data.expected_value,
+                               value);
+        }
+        callback(mock_set_data.err, mock_set_data.result);
+    };
+
+    mock('redis', {createClient: () => {
+        return {
+            get: redis_mock_get,
+            set: redis_mock_set,
+            on: () => {}
+        };
+    }});
+
+    after(function() {
+        mock.stopAll();
+    });
+
+    beforeEach(function() {
+
+    });
+
+    afterEach(function() {
+        mock_get_data = {
+            expected_key: undefined,
+            err: null,
+            reply: null
+        };
+        mock_set_data = {
+            expected_key: undefined,
+            expected_value: undefined,
+            err: null,
+            result: null
+        };
+    });
+
+    const db = new (require(db_path))();
+
+    it("DB get string OK", function() {
+        const key = "lolka";
+        const value = "val";
+
+        mock_get_data = {
+            expected_key: key,
+            err: null,
+            reply: value
+        };
+
+        return db.get(key)
+                 .then((result) => {
+                     assert.strictEqual(value, result);
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB get string NOT_OK", function() {
+        const key = "lolka";
+        const value = "val";
+
+        mock_get_data = {
+            expected_key: key,
+            err: new Error("Fail"),
+            reply: null
+        };
+
+        return db.get(key)
+                 .then((result) => {
+                     assert(false, "Unexpected OK result " + result);
+                 })
+                 .catch((error) => {
+                     assert.strictEqual(error, mock_get_data.err);
+                 });
+    });
+
+    it("DB get obj OK", function() {
+        const key = "lolka";
+        const value = {1:2, "lolka":true};
+
+        mock_get_data = {
+            expected_key: key,
+            err: null,
+            reply: JSON.stringify(value)
+        };
+
+        return db.get_obj(key)
+                 .then((result) => {
+                     assert.deepEqual(value, result);
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB set string OK", function() {
+        const key = "lolka";
+        const value = "val";
+
+        mock_set_data = {
+            expected_key: key,
+            expected_value: value,
+            err: null,
+            result: "OK"
+        };
+
+        return db.set(key, value)
+                 .then(() => {
+                     //We're good.
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB set string NOT_OK", function() {
+        const key = "lolka";
+        const value = "val";
+        const expected_err = new Error("Fail to set");
+
+        mock_set_data = {
+            err: expected_err,
+            result: "NOT_OK"
+        };
+
+        return db.set(key, value)
+                 .then(() => {
+                     assert(false, "Unexpected success");
+                 })
+                 .catch((error) => {
+                     assert.strictEqual(error, expected_err);
+                 });
+    });
+
+    it("DB set obj OK", function() {
+        const key = "lolka";
+        const value = {1: 2, 2: 3}
+
+        mock_set_data = {
+            expected_key: key,
+            expected_value: JSON.stringify(value),
+            err: null,
+            result: "OK"
+        };
+
+        return db.set_obj(key, value)
+                 .then(() => {
+                     //We're good.
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
     });
 });

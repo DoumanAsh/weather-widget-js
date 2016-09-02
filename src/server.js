@@ -2,29 +2,37 @@
 const express = require('express');
 const trace = require('./utils').logger;
 const geo = require('./utils').geo;
-const redis_cli = require('./utils').redis;
 
+const db = new (require('./utils').db)();
 const app = express();
 
 var cities = {};
 
-redis_cli.get('cities', function(err, reply) {
-    trace('redis GET \'cities\'. err=%s | reply=%s', err, reply);
-    if (reply) {
-        cities = JSON.parse(reply);
-    }
-    else {
-        geo.get_coords_city('Nizhny Novgorod', 'Moscow', 'Saint Petersburg')
-           .then(function(result) {
-               trace("Downloaded coordinates=%j", result);
-               cities = result;
-               redis_cli.set('cities', JSON.stringify(cities));
-           })
-           .catch(function(error) {
-               throw error;
-           });
-    }
-});
+db.get_obj('cities')
+  .then((result) => {
+      trace("Got cached cities='%j'", result);
+      cities = result;
+  })
+  .catch(function(err) {
+      trace('Could not get cities. Error=%s', err);
+
+      geo.get_coords_city('Nizhny Novgorod', 'Moscow', 'Saint Petersburg')
+         .then((result) => {
+             trace("Downloaded coordinates=%j", result);
+             cities = result;
+             db.set_obj('cities', cities)
+               .then(() => {
+                   trace('cached new cities');
+                   //TODO: download weather.
+               })
+               .catch((error) => {
+                   console.log("Could not cache cities. Error=%s", error);
+               });
+         })
+         .catch((error) => {
+             console.log("Could not retrieve cities. Error=%s", error);
+         });
+  });
 
 app.set('views', __from_root('views'));
 app.set('view engine', 'pug');
