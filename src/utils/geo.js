@@ -30,7 +30,7 @@ function get_coords_city(...args) {
                     body = JSON.parse(body);
 
                     if (body.status !== "OK") {
-                        reject(new Error("Bad google api result"));
+                        reject(new Error('Bad google api result'));
                     }
 
                     //Assume that we're going to have only one result.
