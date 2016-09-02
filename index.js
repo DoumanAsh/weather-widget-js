@@ -1,8 +1,9 @@
 'use strict';
+const path = require('path');
+
 /* Setup root of project as a global */
 global.__root_dir = __dirname;
-global.__from_root = function(...args){
-    const path = require('path');
+global.__from_root = function(...args) {
     return path.join(global.__root_dir, ...args);
 };
 

@@ -4,7 +4,7 @@ const path = require('path');
 const mock = require('mock-require');
 
 global.__root_dir = path.join(__dirname, '..');
-global.__from_root = function(...args){
+global.__from_root = function(...args) {
     return path.join(global.__root_dir, ...args);
 };
 
@@ -290,7 +290,6 @@ describe('db:', function() {
 
     it("DB get string NOT_OK", function() {
         const key = "lolka";
-        const value = "val";
 
         mock_get_data = {
             expected_key: key,
@@ -367,7 +366,7 @@ describe('db:', function() {
 
     it("DB set obj OK", function() {
         const key = "lolka";
-        const value = {1: 2, 2: 3}
+        const value = {1: 2, 2: 3};
 
         mock_set_data = {
             expected_key: key,
