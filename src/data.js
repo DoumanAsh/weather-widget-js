@@ -147,7 +147,7 @@ module.exports = class DB {
             time_now = time_now.getTime() / 1000; //Unix time.
 
             var result = [];
-            forecast_io_data.daily.forEach((day_data) => {
+            forecast_io_data.daily.data.forEach((day_data) => {
                 if (day_data.time >= time_now) {
                     result.push({
                         time: day_data.time,

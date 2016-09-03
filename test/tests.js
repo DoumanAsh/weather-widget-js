@@ -559,24 +559,26 @@ describe('data:', function() {
                 windSpeed: 2,
                 humidity: 0.80
             },
-            daily: [
-            {
-                time: (new Date()).getTime() / 1000,
-                summary: "Today summary",
-                temperatureMin: 13,
-                temperatureMax: 20,
-                humidity: 0.80,
-                windSpeed: 2
-            },
-            {
-                time: ((new Date()).getTime() / 1000) + 86400,
-                summary: "Tommorrow summary",
-                temperatureMin: 14,
-                temperatureMax: 21,
-                humidity: 0.85,
-                windSpeed: 3
+            daily: {
+                data: [
+                {
+                    time: (new Date()).getTime() / 1000,
+                    summary: "Today summary",
+                    temperatureMin: 13,
+                    temperatureMax: 20,
+                    humidity: 0.80,
+                    windSpeed: 2
+                },
+                {
+                    time: ((new Date()).getTime() / 1000) + 86400,
+                    summary: "Tommorrow summary",
+                    temperatureMin: 14,
+                    temperatureMax: 21,
+                    humidity: 0.85,
+                    windSpeed: 3
 
-            }]
+                }]
+            }
         };
     }
 
@@ -589,14 +591,14 @@ describe('data:', function() {
         assert.equal(data.current.humidity, default_data.currently.humidity);
 
         //Week
-        assert.equal(data.week.length, default_data.daily.length);
+        assert.equal(data.week.length, default_data.daily.data.length);
         for (var idx = 0; idx < data.week.length; idx++) {
-            assert.equal(data.week[idx].time, default_data.daily[idx].time);
-            assert.equal(data.week[idx].summary, default_data.daily[idx].summary);
-            assert.equal(data.week[idx].temperature.min, default_data.daily[idx].temperatureMin);
-            assert.equal(data.week[idx].temperature.max, default_data.daily[idx].temperatureMax);
-            assert.equal(data.week[idx].humidity, default_data.daily[idx].humidity);
-            assert.equal(data.week[idx].windSpeed, default_data.daily[idx].windSpeed);
+            assert.equal(data.week[idx].time, default_data.daily.data[idx].time);
+            assert.equal(data.week[idx].summary, default_data.daily.data[idx].summary);
+            assert.equal(data.week[idx].temperature.min, default_data.daily.data[idx].temperatureMin);
+            assert.equal(data.week[idx].temperature.max, default_data.daily.data[idx].temperatureMax);
+            assert.equal(data.week[idx].humidity, default_data.daily.data[idx].humidity);
+            assert.equal(data.week[idx].windSpeed, default_data.daily.data[idx].windSpeed);
         }
     }
 
@@ -665,8 +667,8 @@ describe('data:', function() {
 
     it('Initializes Data from google API OK and fetch some old forecast data', function(done) {
         const forecast_data = default_forecast_data();
-        forecast_data.daily[0].time = 1;
-        forecast_data.daily[1].time = 1;
+        forecast_data.daily.data[0].time = 1;
+        forecast_data.daily.data[1].time = 1;
 
         forecast_mock_data = {
             result: JSON.stringify(forecast_data)
