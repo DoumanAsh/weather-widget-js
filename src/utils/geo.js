@@ -14,12 +14,12 @@ function geocode_city(city_name) {
 /**
  * Retrieves coordinates of Russian city.
  *
- * @param {String} args City name.
+ * @param {Array} args List of cities names.
  *
  * @return Promise with object which consist of city name and its coordinates.
  */
-function get_coords_city(...args) {
-    var args_num = arguments.length;
+function get_coords_city(args) {
+    var args_num = args.length;
     return new Promise(function(resolve, reject) {
         var result = {};
 
