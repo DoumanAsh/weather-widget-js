@@ -473,8 +473,41 @@ describe('data:', function() {
     };
     mock(db_path, db_mock);
 
+    var forecast_mock_data = {
+        is_called: false,
+        result: undefined,
+        error: undefined
+    };
     const forecast_mock = function(key) {
         assert.notEqual(key, undefined, 'ForecastIO API cannot be undefined!');
+
+        this.latitude = function(value) {
+            assert.notEqual(value, undefined, "Latitude cannot be undefined!");
+            return this;
+        };
+
+        this.longitude = function(value) {
+            assert.notEqual(value, undefined, "Longitude cannot be undefined!");
+            return this;
+        };
+
+        this.units = function(value) {
+            assert.notEqual(value, undefined, "Units cannot be undefined!");
+            return this;
+        };
+
+        this.get = function() {
+            forecast_mock_data.is_called = true;
+            return new Promise((resolve, reject) => {
+                if (forecast_mock_data.result) {
+                    resolve(forecast_mock_data.result);
+                }
+                else {
+                    reject(forecast_mock_data.error);
+                }
+            });
+        };
+
     };
     mock('forecast-io', forecast_mock);
 
@@ -482,6 +515,11 @@ describe('data:', function() {
     });
 
     afterEach(function() {
+        forecast_mock_data = {
+            is_called: false,
+            result: undefined,
+            error: undefined
+        };
         geo_mock_data = {
             is_called: false,
             expected_cities: undefined,
@@ -512,8 +550,64 @@ describe('data:', function() {
         delete require.cache[require.resolve(data_class)];
     });
 
+    function default_forecast_data() {
+        return {
+            currently: {
+                time: 666,
+                summary: "Some summary",
+                temperature: 15,
+                windSpeed: 2,
+                humidity: 0.80
+            },
+            daily: [
+            {
+                time: (new Date()).getTime() / 1000,
+                summary: "Today summary",
+                temperatureMin: 13,
+                temperatureMax: 20,
+                humidity: 0.80,
+                windSpeed: 2
+            },
+            {
+                time: ((new Date()).getTime() / 1000) + 86400,
+                summary: "Tommorrow summary",
+                temperatureMin: 14,
+                temperatureMax: 21,
+                humidity: 0.85,
+                windSpeed: 3
+
+            }]
+        };
+    }
+
+    function assert_w_default_forecast_data(default_data, data) {
+        //Current
+        assert.equal(data.current.time, default_data.currently.time);
+        assert.equal(data.current.summary, default_data.currently.summary);
+        assert.equal(data.current.temperature, default_data.currently.temperature);
+        assert.equal(data.current.windSpeed, default_data.currently.windSpeed);
+        assert.equal(data.current.humidity, default_data.currently.humidity);
+
+        //Week
+        assert.equal(data.week.length, default_data.daily.length);
+        for (var idx = 0; idx < data.week.length; idx++) {
+            assert.equal(data.week[idx].time, default_data.daily[idx].time);
+            assert.equal(data.week[idx].summary, default_data.daily[idx].summary);
+            assert.equal(data.week[idx].temperature.min, default_data.daily[idx].temperatureMin);
+            assert.equal(data.week[idx].temperature.max, default_data.daily[idx].temperatureMax);
+            assert.equal(data.week[idx].humidity, default_data.daily[idx].humidity);
+            assert.equal(data.week[idx].windSpeed, default_data.daily[idx].windSpeed);
+        }
+    }
+
     const Data = require(data_class);
     it('Initializes Data from google API OK', function(done) {
+        const forecast_data = default_forecast_data();
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
+
         geo_mock_data = {
             expected_cities: ['Nizhny Novgorod', 'Moscow', 'Saint Petersburg'],
             result: {
@@ -547,6 +641,7 @@ describe('data:', function() {
         function assert_test() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
 
             geo_mock_data.expected_cities.forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
@@ -556,7 +651,135 @@ describe('data:', function() {
                 assert(coords, "Couldn't get city '" + city + "' coordinates");
 
                 assert.deepEqual(coords, geo_mock_data.result[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert(forecast, "Couldn't get city '" + city + "' forecast");
+                assert_w_default_forecast_data(forecast_data, forecast);
             });
+
+            done();
+        }
+
+        setTimeout(assert_test, 1);
+    });
+
+    it('Initializes Data from google API OK and fetch some old forecast data', function(done) {
+        const forecast_data = default_forecast_data();
+        forecast_data.daily[0].time = 1;
+        forecast_data.daily[1].time = 1;
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
+
+        geo_mock_data = {
+            expected_cities: ['Nizhny Novgorod', 'Moscow', 'Saint Petersburg'],
+            result: {
+                'Nizhny Novgorod': {
+                    lat: 2,
+                    lng: -2
+                },
+                'Moscow': {
+                    lat: 4,
+                    lng: -5
+                },
+                'Saint Petersburg': {
+                    lat: 12,
+                    lng: -1
+                }
+            },
+            error: undefined
+        };
+
+        db_mock_data.set = {
+            expected_key: 'cities',
+            expected_value: geo_mock_data.result
+        };
+
+        var data;
+        function set_data() {
+            data = new Data();
+        }
+        assert.doesNotThrow(set_data);
+
+        function assert_test() {
+            assert(geo_mock_data.is_called, "Geo mock is not called!");
+            assert(db_mock_data.set.is_called, "DB set mock is not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+
+            geo_mock_data.expected_cities.forEach((city) => {
+                assert(city in data.inner, "City '" + city + "' is not in Data");
+                assert(data.get_city(city), "City '" + city + "' is not in Data");
+
+                var coords = data.get_city_coords(city);
+                assert(coords, "Couldn't get city '" + city + "' coordinates");
+
+                assert.deepEqual(coords, geo_mock_data.result[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert(forecast, "Couldn't get city '" + city + "' forecast");
+                assert.equal(forecast.week.length, 0);
+            });
+
+            done();
+        }
+
+        setTimeout(assert_test, 1);
+    });
+
+    it('Initializes Data from google API OK but fail to fetch forecast', function(done) {
+        forecast_mock_data = {
+            error: 'Fail to fetch forecast data'
+        };
+
+        geo_mock_data = {
+            expected_cities: ['Nizhny Novgorod', 'Moscow', 'Saint Petersburg'],
+            result: {
+                'Nizhny Novgorod': {
+                    lat: 2,
+                    lng: -2
+                },
+                'Moscow': {
+                    lat: 4,
+                    lng: -5
+                },
+                'Saint Petersburg': {
+                    lat: 12,
+                    lng: -1
+                }
+            },
+            error: undefined
+        };
+
+        db_mock_data.set = {
+            expected_key: 'cities',
+            expected_value: geo_mock_data.result
+        };
+
+        var data;
+        function set_data() {
+            data = new Data();
+        }
+        assert.doesNotThrow(set_data);
+
+        function assert_test() {
+            assert(geo_mock_data.is_called, "Geo mock is not called!");
+            assert(db_mock_data.set.is_called, "DB set mock is not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+
+            geo_mock_data.expected_cities.forEach((city) => {
+                assert(city in data.inner, "City '" + city + "' is not in Data");
+                assert(data.get_city(city), "City '" + city + "' is not in Data");
+
+                var coords = data.get_city_coords(city);
+                assert(coords, "Couldn't get city '" + city + "' coordinates");
+
+                assert.deepEqual(coords, geo_mock_data.result[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert.equal(forecast, undefined);
+            });
+
             done();
         }
 
@@ -564,6 +787,11 @@ describe('data:', function() {
     });
 
     it('Initializes Data from google API OK but fail to save in DB', function(done) {
+        const forecast_data = default_forecast_data();
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
         geo_mock_data = {
             expected_cities: ['Nizhny Novgorod', 'Moscow', 'Saint Petersburg'],
             result: {
@@ -598,6 +826,7 @@ describe('data:', function() {
         function assert_test() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
 
             /* Even if we fail to set, coordinates should be in Data */
             geo_mock_data.expected_cities.forEach((city) => {
@@ -608,6 +837,10 @@ describe('data:', function() {
                 assert(coords, "Couldn't get city '" + city + "' coordinates");
 
                 assert.deepEqual(coords, geo_mock_data.result[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert(forecast, "Couldn't get city '" + city + "' forecast");
+                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }
@@ -630,11 +863,13 @@ describe('data:', function() {
         function assert_test() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(!db_mock_data.set.is_called, "DB set mock should not called!");
+            assert(!forecast_mock_data.is_called, "ForecastIO mock should not called!");
 
             geo_mock_data.expected_cities.forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
                 assert.strictEqual(data.get_city(city), undefined);
                 assert.strictEqual(data.get_city_coords(city), undefined);
+                assert.strictEqual(data.get_city_forecast(city), undefined);
             });
             done();
         }
@@ -643,6 +878,11 @@ describe('data:', function() {
     });
 
     it('Initializes Data from DB OK', function(done) {
+        const forecast_data = default_forecast_data();
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
         var expected_cities_coords = {
             'Nizhny Novgorod': {
                 lat: 2,
@@ -673,6 +913,7 @@ describe('data:', function() {
             assert(db_mock_data.get.is_called, "DB get mock is not called!");
             assert(!geo_mock_data.is_called, "Geo mock should not called!");
             assert(!db_mock_data.set.is_called, "DB set mock should not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
 
             Object.keys(expected_cities_coords).forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
@@ -682,6 +923,10 @@ describe('data:', function() {
                 assert(coords, "Couldn't get city '" + city + "' coordinates");
 
                 assert.deepEqual(coords, expected_cities_coords[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert(forecast, "Couldn't get city '" + city + "' forecast");
+                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }
@@ -690,6 +935,11 @@ describe('data:', function() {
     });
 
     it('Initializes Data from DB OK and reset coordinates', function(done) {
+        const forecast_data = default_forecast_data();
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
         var expected_cities_coords = {
             'Nizhny Novgorod': {
                 lat: 2,
@@ -720,6 +970,7 @@ describe('data:', function() {
             assert(db_mock_data.get.is_called, "DB get mock is not called!");
             assert(!geo_mock_data.is_called, "Geo mock should not called!");
             assert(!db_mock_data.set.is_called, "DB set mock should not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
 
             data.set_coordinates(expected_cities_coords);
             Object.keys(expected_cities_coords).forEach((city) => {
@@ -730,6 +981,10 @@ describe('data:', function() {
                 assert(coords, "Couldn't get city '" + city + "' coordinates");
 
                 assert.deepEqual(coords, expected_cities_coords[city]);
+
+                var forecast = data.get_city_forecast(city);
+                assert(forecast, "Couldn't get city '" + city + "' forecast");
+                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }
@@ -738,6 +993,11 @@ describe('data:', function() {
     });
 
     it('Initializes Data from DB OK and try to get non-existing city', function(done) {
+        const forecast_data = default_forecast_data();
+
+        forecast_mock_data = {
+            result: JSON.stringify(forecast_data)
+        };
         var expected_cities_coords = {
             'Nizhny Novgorod': {
                 lat: 2,
@@ -768,8 +1028,11 @@ describe('data:', function() {
             assert(db_mock_data.get.is_called, "DB get mock is not called!");
             assert(!geo_mock_data.is_called, "Geo mock should not called!");
             assert(!db_mock_data.set.is_called, "DB set mock should not called!");
+            assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
 
-            assert.throws(function() { data.get_city('non-existing') }, 'Should not get non-existing city!');
+            assert.throws(function() { data.get_city('non-existing'); }, 'Should not get non-existing city!');
+            assert.throws(function() { data.get_city_coords('non-existing'); }, 'Should not get non-existing city!');
+            assert.throws(function() { data.get_city_forecast('non-existing'); }, 'Should not get non-existing city!');
             done();
         }
 

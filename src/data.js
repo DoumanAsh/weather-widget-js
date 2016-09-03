@@ -17,8 +17,7 @@ module.exports = class DB {
      * @constructor
      */
     constructor() {
-        //TODO: remove API key here :)
-        this.forecast_io = new ForecastIO('API_KEY');
+        this.forecast_io = new ForecastIO(process.env.FORECAST_IO_API_KEY);
         this.inner = {
             'Nizhny Novgorod': undefined,
             'Moscow': undefined,
@@ -53,13 +52,27 @@ module.exports = class DB {
      * @param city {String} name of the city.
      */
     get_city_coords(city) {
-        var city = this.get_city(city);
+        city = this.get_city(city);
 
         if (!city) {
             return undefined;
         }
 
         return city.coordinates;
+    }
+
+    /**
+     * @return {Object} Forecast for city.
+     * @param city Name of the city.
+     */
+    get_city_forecast(city) {
+        city = this.get_city(city);
+
+        if (!city) {
+            return undefined;
+        }
+
+        return city.forecast;
     }
 
     /**
@@ -73,11 +86,23 @@ module.exports = class DB {
               trace("Got cached cities='%j'", result);
 
               this.set_coordinates(result);
+              this.init_forecast();
           })
           .catch((err) => {
               trace('Could not get cities from DB. Error=%s', err);
               this.fetch_coordinates();
           });
+    }
+
+    /**
+     * Initializes forecast information.
+     */
+    init_forecast() {
+        trace('Initialize forecast info');
+        this.fetch_forecast();
+
+        /* 1 hour re-fetch */
+        setInterval(this.fetch_forecast, 3600000);
     }
 
     /**
@@ -99,6 +124,54 @@ module.exports = class DB {
     }
 
     /**
+     * Sets forecast for city.
+     * @param city {String} Name of the city.
+     * @param data {Object} JSON data from ForecastIO.
+     */
+    set_forecast(city, data) {
+        trace('Set forecast for city %s', city);
+        function day_info(forecast_io_data) {
+            const current = forecast_io_data.currently;
+            return {
+                time: current.time, //Unix time
+                summary: current.summary,
+                temperature: current.temperature, //Celcius
+                windSpeed: current.windSpeed, //Meters per second
+                humidity: current.humidity //%
+            };
+        }
+
+        function week_info(forecast_io_data) {
+            var time_now = new Date();
+            time_now.setHours(0, 0, 0, 0);
+            time_now = time_now.getTime() / 1000; //Unix time.
+
+            var result = [];
+            forecast_io_data.daily.forEach((day_data) => {
+                if (day_data.time >= time_now) {
+                    result.push({
+                        time: day_data.time,
+                        summary: day_data.summary,
+                        temperature: {
+                            min: day_data.temperatureMin,
+                            max: day_data.temperatureMax,
+                        },
+                        humidity: day_data.humidity,
+                        windSpeed: day_data.windSpeed
+                    });
+                }
+            });
+
+            return result;
+        }
+
+        this.inner[city].forecast = {
+            current: day_info(data),
+            week: week_info(data)
+        };
+    }
+
+    /**
      * Downloads cities coordinates.
      */
     fetch_coordinates() {
@@ -117,6 +190,7 @@ module.exports = class DB {
                  });
 
                this.set_coordinates(result);
+               this.init_forecast();
            })
            .catch((error) => {
                console.log("Could not retrieve cities. Error=%s", error);
@@ -127,5 +201,19 @@ module.exports = class DB {
      * Downloads forecast information.
      */
     fetch_forecast() {
+        this.get_cities().forEach((key) => {
+            const coords = this.inner[key].coordinates;
+
+            this.forecast_io.latitude(coords.lat)
+                            .longitude(coords.lng)
+                            .units('si')
+                            .get()
+                            .then((res) => {
+                                this.set_forecast(key, JSON.parse(res));
+                            })
+                            .catch((err) => {
+                                console.log(err);
+                            });
+        });
     }
 };
