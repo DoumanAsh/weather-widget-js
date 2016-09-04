@@ -1,4 +1,76 @@
 include ./_head.pug
 
-Nothing for now
+link(rel='stylesheet', href='/config.css', type='text/css')
+
+script.
+    function _set_preview() {
+        var city = document.getElementById('city').value;
+        var days = document.getElementById('days').value;
+        var type;
+
+        if (document.getElementById('vertical').checked) {
+            type = "vertical";
+        }
+        else {
+            type = "horizontal";
+        }
+
+        document.getElementById('preview').src = window.location + "widget?city=" + city.replace(' ', '+') + "&type=" + type + "&days=" + days;
+    }
+
+    function _generate_widget() {
+        var pop = document.getElementById('pop');
+        var text_area = pop.children[1];
+
+        text_area.value = document.getElementById('preview').outerHTML;
+        pop.className = pop.className.replace('hidden', '');
+        text_area.select();
+    }
+
+div(id="pop", class="hidden")
+    h1(class="heading")="Generated widget"
+    textarea(rows="4", cols="40", placeholder="code")=""
+    button(class="close", onclick="document.getElementById('pop').className += 'hidden'").
+        &#10006
+
+
+div.config
+    h1(class="heading")="Create weather widget"
+
+    form
+        label(for="city")="City"
+        select(id='city', name='city', onchange="_set_preview()")
+            each city, index in cities
+                if index === 0
+                    option(value=city selected)=city
+                else
+                    option(value=city)=city
+
+    form
+        label(for="days")="Days"
+        select(id='days', name='days', onchange="_set_preview()")
+            each day, index in days
+                if index === 0
+                    option(value=day selected)=day
+                else
+                    option(value=day)=day
+
+    form
+        label(for="type")="Type"
+        div(class="type")
+            div
+                input(type="radio", id="vertical", name="type", value="vertical", onclick="_set_preview()", checked)
+                | Vertical
+            div
+                input(type="radio", id="horizontal", name="type", value="horizontal", onclick="_set_preview()")
+                | Horizontal
+
+    div(class="generate")
+        button(onclick="_generate_widget()")="Generate"
+
+div.widget
+    h1(class="heading")="Widget Preview"
+    iframe(id="preview", src="/widget?city=" + cities[0].replace(' ', '+') + "&type=vertical&days=" + days[0], frameborder=0, scrolling="no", onload="this.style.height = this.contentWindow.document.body.scrollHeight + 'px';this.style.width = this.contentWindow.document.body.scrollWidth + 'px';")
+    script.
+        _set_preview()
 

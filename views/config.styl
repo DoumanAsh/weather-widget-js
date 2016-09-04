@@ -1,0 +1,112 @@
+/* Widget configuration */
+
+@keyframes fly-in
+    0%
+        opacity: 0
+        transform: translateY(-40px)
+
+    100%
+        opacity: 1
+        transform: translateY(0)
+
+div#pop
+    animation: fly-in 1s
+    width: 25rem
+    position: absolute
+    left: 40%; top: 40%
+    background-color: #fff
+    padding: 0.5rem
+    border-radius: 0.2rem
+    box-shadow: 2px 2px 5px #000
+    z-index: 3
+    text-align: center
+    & > button.close
+        position:absolute
+        top:0
+        right:0
+        border-radius: 2px
+        color: #ffffff
+        border: none
+        font-size: 15px
+        background: #757575
+        padding: 5px 10px 5px 10px
+        &:hover
+        &:active
+            background: #080808
+    & > textarea
+        margin: .4rem
+        border: 0
+        padding: 10px
+        border: 1px solid #DDDDDD
+        &:focus
+            outline: none
+            box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+
+div#pop.hidden
+    display: none
+
+div.widget
+    position: fixed
+    top: 5%
+    right: 15%
+
+    & > h1.heading
+        padding: .5em
+        text-align: center
+
+div.config
+    display: flex
+    flex-flow: column
+    width: 30%
+    position: fixed
+    top: 5%
+    left: 5%
+    bottom: 5%
+    box-shadow: 2px 2px 2px 2px #aaa
+    background-color: #eaeaea
+
+    & > div.generate
+        text-align: center
+        & > button
+            width: 40%
+            border-radius: 4px
+            color: #ffffff
+            border: none
+            font-size: 20px
+            background: #757575
+            padding: 10px 20px 10px 20px
+            text-decoration: none
+            &:hover
+            &:active
+                background: #080808
+
+    & > form
+        display: flex
+        justify-content: space-between
+        & > div.type
+            margin: 1rem
+            display: flex
+            justify-content: space-between
+            width: 250px
+        & > label
+            margin: 1rem
+            display: inline-block
+            color: #5a5454
+            padding: .5rem
+            font-size: 1.2rem
+        & > * input[type=radio]
+            margin-right: .5rem
+
+
+    & > * select
+        margin: 1rem
+        border: none
+        width: 250px
+        padding: 0.1rem
+    & > h2.title
+        margin-left: 1rem
+    & > h1.heading
+        padding: .5em
+        text-align: center
+        color: white
+        background-color: #696969

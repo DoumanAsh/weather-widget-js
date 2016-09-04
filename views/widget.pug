@@ -1,0 +1,26 @@
+include ./_head.pug
+
+link(rel='stylesheet', href='/widget.css', type='text/css')
+
+mixin widget(type)
+    div.widget(class=type)
+        block
+
++widget(type)
+    div
+        mixin info(name, day)
+            h1(class="heading")=name
+            h4=day.summary
+            - function get_temp_str(value) { if (value > 0) { return "+" + value } else if (value < 0) { return "-" + value } else {return value}}
+            - var max = get_temp_str(Math.round(day.temperature.max))
+            - var min = get_temp_str(Math.round(day.temperature.min))
+            div.temp
+                h2.day=max + '°'
+                h3.night=min + '°'
+        each day, index in week
+            if index === 0
+                +info("Today", day)
+            else
+                - var date_name = (new Date(day.time * 1000)).toDateString().slice(0, -5)
+                +info(date_name, day)
+

@@ -102,7 +102,7 @@ module.exports = class DB {
         this.fetch_forecast();
 
         /* 1 hour re-fetch */
-        setInterval(this.fetch_forecast, 3600000);
+        setInterval(this.fetch_forecast, 3600000, this);
     }
 
     /**
@@ -200,16 +200,21 @@ module.exports = class DB {
     /**
      * Downloads forecast information.
      */
-    fetch_forecast() {
-        this.get_cities().forEach((key) => {
-            const coords = this.inner[key].coordinates;
+    fetch_forecast(self) {
+        /* When called from time-out we pass this. */
+        if (!self) {
+            self = this
+        }
 
-            this.forecast_io.latitude(coords.lat)
+        self.get_cities().forEach((key) => {
+            const coords = self.inner[key].coordinates;
+
+            self.forecast_io.latitude(coords.lat)
                             .longitude(coords.lng)
                             .units('si')
                             .get()
                             .then((res) => {
-                                this.set_forecast(key, JSON.parse(res));
+                                self.set_forecast(key, JSON.parse(res));
                             })
                             .catch((err) => {
                                 console.log(err);
