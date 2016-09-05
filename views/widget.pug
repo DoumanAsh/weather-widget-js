@@ -9,7 +9,7 @@ mixin widget(type)
 +widget(type)
     mixin info(name, day)
         div
-            h1(class="heading")=name
+            h2(class="heading")=name
             h4=day.summary
             - function get_temp_str(value) { if (value > 0) { return "+" + value } else if (value < 0) { return "-" + value } else {return value}}
             - var max = get_temp_str(Math.round(day.temperature.max))
@@ -19,7 +19,7 @@ mixin widget(type)
                 h3.night=min + '°'
     each day, index in week
         if index === 0
-            +info("Today", day)
+            +info("Today " + (new Date()).toDateString().slice(4, -5), day)
         else
             - var date_name = (new Date(day.time * 1000)).toDateString().slice(0, -5)
             +info(date_name, day)
