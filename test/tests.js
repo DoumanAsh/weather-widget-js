@@ -11,6 +11,8 @@ global.__from_root = function(...args) {
 const custom_utils = './../src/utils/logger.js';
 const geo_path = '../src/utils/geo.js';
 const db_path = '../src/utils/db.js';
+const data_class = './../src/data.js';
+const server_path = './../src/server.js';
 
 describe('logger:', function() {
     const old_console_info = console.info;
@@ -387,7 +389,6 @@ describe('db:', function() {
 
 /* TODO: There is a problem with re-mocking in a different files.
  */
-const data_class = './../src/data.js';
 describe('data:', function() {
     var geo_mock_data = {
         is_called: false,
@@ -1040,6 +1041,49 @@ describe('data:', function() {
 
         setTimeout(assert_test, 1);
     });
-
-
 });
+
+/*TODO: cannot mock data class :( */
+/*
+describe('server:', function() {
+    const request = require('supertest');
+
+    var data_mock_inner = {
+    };
+
+    function data_mock() {
+        console.log('mock');
+        return {
+            inner: data_mock_inner,
+            get_cities: function() { Object.keys(this.inner); }
+        };
+    }
+
+    mock(data_class, data_mock);
+    var temp = require(data_class);
+    assert.equal(temp, data_mock);
+
+    after(function() {
+        mock.stopAll();
+    });
+
+    afterEach(function() {
+        data_mock_inner = {};
+    });
+
+    it("Get widget configurator with cities", function(done) {
+        data_mock_inner = {
+            'Moscow': undefined,
+            'Bor': undefined
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/')
+                    .expect(200)
+                    .expect(function(res) {
+                        console.log('%j', res);
+                    }, done);
+    });
+});
+*/

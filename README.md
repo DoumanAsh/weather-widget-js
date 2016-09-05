@@ -20,5 +20,6 @@ Server should be up and running for back-up.
 - [X] Implement server side
     - [X] Widget creation
     - [X] Client iframe
-        - [ ] Fix horizontal widget
-- [ ] Supply automatic test
+        - [X] Fix horizontal widget
+- [X] Supply automatic test
+    - Express routing is not tested yet...
