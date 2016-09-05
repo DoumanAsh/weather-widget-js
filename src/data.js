@@ -203,7 +203,7 @@ module.exports = class DB {
     fetch_forecast(self) {
         /* When called from time-out we pass this. */
         if (!self) {
-            self = this
+            self = this;
         }
 
         self.get_cities().forEach((key) => {

@@ -27,19 +27,19 @@ app.get('/widget', function (req, res) {
     const city = req.query.city;
     const type = req.query.type;
     const days = parseInt(req.query.days);
-    const forecast = data.inner[city].forecast;
+    const city_obj = data.inner[city];
 
-    trace("Widget request(city='%s', type='%s', days='%s', forecast='%s')", city, type, days, forecast);
+    trace("Widget request(city='%s', type='%s', days='%s', city_obj='%s')", city, type, days, city_obj);
 
-    if ((!city) || (!type) || (!days) || (!forecast) || (forecast.week.length < days)) {
+    if ((!city) || (!type) || (!days) || (!city_obj) || (city_obj.forecast.week.length < days)) {
         res.status(404).render('404');
         return;
     }
 
     res.render('widget', {
         city: city,
-        current: forecast.current,
-        week: forecast.week.slice(0, days),
+        current: city_obj.forecast.current,
+        week: city_obj.forecast.week.slice(0, days),
         type: type
     });
 });

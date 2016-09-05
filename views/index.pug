@@ -22,7 +22,7 @@ script.
         var pop = document.getElementById('pop');
         var text_area = pop.children[1];
 
-        text_area.value = document.getElementById('preview').outerHTML;
+        text_area.value = document.getElementById('preview').outerHTML.replace(/&amp;/g, "&")
         pop.className = pop.className.replace('hidden', '');
         text_area.select();
     }
