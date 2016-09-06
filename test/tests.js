@@ -237,11 +237,52 @@ describe('db:', function() {
         }
         callback(mock_set_data.err, mock_set_data.result);
     };
+    var mock_hget_data = {
+        expected_hash: undefined,
+        expected_key: undefined,
+        err: null,
+        reply: null
+    };
+    var redis_mock_hget = function(hash, key, callback) {
+        if (mock_hget_data.expected_hash !== undefined) {
+            assert.strictEqual(mock_hget_data.expected_hash,
+                               hash);
+        }
+        if (mock_hget_data.expected_key !== undefined) {
+            assert.strictEqual(mock_hget_data.expected_key,
+                               key);
+        }
+        callback(mock_hget_data.err, mock_hget_data.reply);
+    };
+    var mock_hset_data = {
+        expected_hash: undefined,
+        expected_key: undefined,
+        expected_value: undefined,
+        err: null,
+        result: null
+    };
+    var redis_mock_hset = function(hash, key, value, callback) {
+        if (mock_hset_data.expected_hash !== undefined) {
+            assert.strictEqual(mock_hset_data.expected_hash,
+                               hash);
+        }
+        if (mock_hset_data.expected_key !== undefined) {
+            assert.strictEqual(mock_hset_data.expected_key,
+                               key);
+        }
+        if (mock_hset_data.expected_value !== undefined) {
+            assert.strictEqual(mock_hset_data.expected_value,
+                               value);
+        }
+        callback(mock_hset_data.err, mock_hset_data.result);
+    };
 
     mock('redis', {createClient: () => {
         return {
             get: redis_mock_get,
             set: redis_mock_set,
+            hget: redis_mock_hget,
+            hset: redis_mock_hset,
             on: () => {}
         };
     }});
@@ -261,6 +302,19 @@ describe('db:', function() {
             reply: null
         };
         mock_set_data = {
+            expected_key: undefined,
+            expected_value: undefined,
+            err: null,
+            result: null
+        };
+        mock_hget_data = {
+            expected_hash: undefined,
+            expected_key: undefined,
+            err: null,
+            reply: null
+        };
+        mock_hset_data = {
+            expected_hash: undefined,
             expected_key: undefined,
             expected_value: undefined,
             err: null,
@@ -326,6 +380,69 @@ describe('db:', function() {
                  });
     });
 
+    it("DB hash get obj OK", function() {
+        const hash = "again_hash";
+        const key = "lolka";
+        const value = {1:2, "lolka":true};
+
+        mock_hget_data = {
+            expected_hash: hash,
+            expected_key: key,
+            err: null,
+            reply: JSON.stringify(value)
+        };
+
+        return db.hash_get_obj(hash, key)
+                 .then((result) => {
+                     assert.deepEqual(value, result);
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB get hash OK", function() {
+        const hash = "some_hash";
+        const key = "lolka";
+        const value = "val";
+
+        mock_hget_data = {
+            expected_hash: hash,
+            expected_key: key,
+            err: null,
+            reply: value
+        };
+
+        return db.hash_get(hash, key)
+                 .then((result) => {
+                     assert.strictEqual(value, result);
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB get hash NOT_OK", function() {
+        const hash = "some_hash";
+        const key = "lolka";
+        const value = "val";
+
+        mock_hget_data = {
+            expected_hash: hash,
+            expected_key: key,
+            err: new Error("Fail"),
+            reply: null
+        };
+
+        return db.hash_get(hash, key)
+                 .then((result) => {
+                     assert(false, "Unexpected OK result " + result);
+                 })
+                 .catch((error) => {
+                     assert.strictEqual(error, mock_hget_data.err);
+                 });
+    });
+
     it("DB set string OK", function() {
         const key = "lolka";
         const value = "val";
@@ -346,17 +463,64 @@ describe('db:', function() {
                  });
     });
 
+    it("DB set hash OK", function() {
+        const hash = "again some hash";
+        const key = "lolka";
+        const value = "val";
+
+        mock_hset_data = {
+            expected_hash: hash,
+            expected_key: key,
+            expected_value: value,
+            err: null,
+            result: "OK"
+        };
+
+        return db.hash_set(hash, key, value)
+                 .then(() => {
+                     //We're good.
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
     it("DB set string NOT_OK", function() {
         const key = "lolka";
         const value = "val";
         const expected_err = new Error("Fail to set");
 
         mock_set_data = {
+            expected_key: key,
+            expected_value: value,
             err: expected_err,
             result: "NOT_OK"
         };
 
         return db.set(key, value)
+                 .then(() => {
+                     assert(false, "Unexpected success");
+                 })
+                 .catch((error) => {
+                     assert.strictEqual(error, expected_err);
+                 });
+    });
+
+    it("DB set hash NOT_OK", function() {
+        const hash = "again some hash";
+        const key = "lolka";
+        const value = "val";
+        const expected_err = new Error("Fail to set");
+
+        mock_hset_data = {
+            expected_hash: hash,
+            expected_key: key,
+            expected_value: value,
+            err: expected_err,
+            result: "NOT_OK"
+        };
+
+        return db.hash_set(hash, key, value)
                  .then(() => {
                      assert(false, "Unexpected success");
                  })
@@ -377,6 +541,28 @@ describe('db:', function() {
         };
 
         return db.set_obj(key, value)
+                 .then(() => {
+                     //We're good.
+                 })
+                 .catch((error) => {
+                     assert(false, "Unexpected error " + error);
+                 });
+    });
+
+    it("DB hash set obj OK", function() {
+        const hash = "some_hash";
+        const key = "lolka";
+        const value = {1: 2, 2: 3};
+
+        mock_hset_data = {
+            expected_hash: hash,
+            expected_key: key,
+            expected_value: JSON.stringify(value),
+            err: null,
+            result: "OK"
+        };
+
+        return db.hash_set_obj(hash, key, value)
                  .then(() => {
                      //We're good.
                  })
