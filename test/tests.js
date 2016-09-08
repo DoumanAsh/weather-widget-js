@@ -425,7 +425,6 @@ describe('db:', function() {
     it("DB get hash NOT_OK", function() {
         const hash = "some_hash";
         const key = "lolka";
-        const value = "val";
 
         mock_hget_data = {
             expected_hash: hash,
@@ -614,6 +613,21 @@ describe('data:', function() {
             expected_value: undefined,
             result: undefined,
             error: undefined
+        },
+        hash_get: {
+            is_called: false,
+            expected_hash: undefined,
+            expected_key: undefined,
+            result: undefined,
+            error: undefined
+        },
+        hash_set: {
+            is_called: false,
+            expected_hash: undefined,
+            expected_key: undefined,
+            expected_value: undefined,
+            result: undefined,
+            error: undefined
         }
     };
     const db_mock = function() {
@@ -633,6 +647,25 @@ describe('data:', function() {
                     }
                 });
             },
+            hash_get: function(hash, key) {
+                db_mock_data.hash_get.is_called = true;
+                if (db_mock_data.hash_get.expected_key) {
+                    assert.strictEqual(key, db_mock_data.hash_get.expected_key);
+                }
+
+                if (db_mock_data.hash_get.expected_hash) {
+                    assert.strictEqual(hash, db_mock_data.hash_get.expected_hash);
+                }
+
+                return new Promise(function(resolve, reject) {
+                    if (db_mock_data.hash_get.result) {
+                        resolve(db_mock_data.hash_get.result);
+                    }
+                    else {
+                        reject(db_mock_data.hash_get.error);
+                    }
+                });
+            },
             set: function(key, value) {
                 db_mock_data.set.is_called = true;
                 if (db_mock_data.set.expected_key) {
@@ -644,7 +677,28 @@ describe('data:', function() {
 
                 return new Promise(function(resolve, reject) {
                     if (db_mock_data.set.error) {
-                        reject(db_mock_data.get.error);
+                        reject(db_mock_data.set.error);
+                    }
+                    else {
+                        resolve();
+                    }
+                });
+            },
+            hash_set: function(hash, key, value) {
+                db_mock_data.hash_set.is_called = true;
+                if (db_mock_data.hash_set.expected_key) {
+                    assert.strictEqual(key, db_mock_data.hash_set.expected_key);
+                }
+                if (db_mock_data.hash_set.expected_value) {
+                    assert.deepEqual(value, db_mock_data.hash_set.expected_value);
+                }
+                if (db_mock_data.hash_set.expected_hash) {
+                    assert.strictEqual(hash, db_mock_data.hash_set.expected_hash);
+                }
+
+                return new Promise(function(resolve, reject) {
+                    if (db_mock_data.hash_set.error) {
+                        reject(db_mock_data.hash_set.error);
                     }
                     else {
                         resolve();
@@ -655,6 +709,8 @@ describe('data:', function() {
 
         result.get_obj = result.get;
         result.set_obj = result.set;
+        result.hash_get_obj = result.hash_get;
+        result.hash_set_obj = result.hash_set;
 
         return result;
     };
@@ -726,6 +782,21 @@ describe('data:', function() {
                 expected_value: undefined,
                 result: undefined,
                 error: undefined
+            },
+            hash_get: {
+                is_called: false,
+                expected_hash: undefined,
+                expected_key: undefined,
+                result: undefined,
+                error: undefined
+            },
+            hash_set: {
+                is_called: false,
+                expected_hash: undefined,
+                expected_key: undefined,
+                expected_value: undefined,
+                result: undefined,
+                error: undefined
             }
         };
     });
@@ -769,24 +840,43 @@ describe('data:', function() {
         };
     }
 
-    function assert_w_default_forecast_data(default_data, data) {
-        //Current
-        assert.equal(data.current.time, default_data.currently.time);
-        assert.equal(data.current.summary, default_data.currently.summary);
-        assert.equal(data.current.temperature, default_data.currently.temperature);
-        assert.equal(data.current.windSpeed, default_data.currently.windSpeed);
-        assert.equal(data.current.humidity, default_data.currently.humidity);
 
-        //Week
-        assert.equal(data.week.length, default_data.daily.data.length);
-        for (var idx = 0; idx < data.week.length; idx++) {
-            assert.equal(data.week[idx].time, default_data.daily.data[idx].time);
-            assert.equal(data.week[idx].summary, default_data.daily.data[idx].summary);
-            assert.equal(data.week[idx].temperature.min, default_data.daily.data[idx].temperatureMin);
-            assert.equal(data.week[idx].temperature.max, default_data.daily.data[idx].temperatureMax);
-            assert.equal(data.week[idx].humidity, default_data.daily.data[idx].humidity);
-            assert.equal(data.week[idx].windSpeed, default_data.daily.data[idx].windSpeed);
+    function assert_w_default_forecast_data() {
+    }
+
+    function get_expected_result_forecast(default_data) {
+        var result = {
+            current: {
+                time: default_data.currently.time,
+                summary: default_data.currently.summary,
+                temperature: default_data.currently.temperature,
+                windSpeed: default_data.currently.windSpeed,
+                humidity: default_data.currently.humidity,
+            },
+            week: [
+            ]
+        };
+
+        var time_now = new Date();
+        time_now.setHours(0, 0, 0, 0);
+        time_now = time_now.getTime() / 1000; //Unix time.
+
+        for (var idx = 0; idx < default_data.daily.data.length; idx++) {
+            if (default_data.daily.data[idx].time >= time_now) {
+                result.week.push({
+                    time: default_data.daily.data[idx].time,
+                    summary: default_data.daily.data[idx].summary,
+                    temperature: {
+                        min: default_data.daily.data[idx].temperatureMin,
+                        max: default_data.daily.data[idx].temperatureMax,
+                    },
+                    humidity: default_data.daily.data[idx].humidity,
+                    windSpeed: default_data.daily.data[idx].windSpeed,
+                });
+            }
         }
+
+        return result;
     }
 
     const Data = require(data_class);
@@ -821,6 +911,11 @@ describe('data:', function() {
             expected_value: geo_mock_data.result
         };
 
+        db_mock_data.hash_set = {
+            expected_hash: 'forecast',
+            expected_value: get_expected_result_forecast(forecast_data)
+        };
+
         var data;
         function set_data() {
             data = new Data();
@@ -831,6 +926,7 @@ describe('data:', function() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
             assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+            assert(db_mock_data.hash_set.is_called, "DB hash set mock is not called!");
 
             geo_mock_data.expected_cities.forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
@@ -843,7 +939,6 @@ describe('data:', function() {
 
                 var forecast = data.get_city_forecast(city);
                 assert(forecast, "Couldn't get city '" + city + "' forecast");
-                assert_w_default_forecast_data(forecast_data, forecast);
             });
 
             done();
@@ -885,6 +980,11 @@ describe('data:', function() {
             expected_value: geo_mock_data.result
         };
 
+        db_mock_data.hash_set = {
+            expected_hash: 'forecast',
+            expected_value: get_expected_result_forecast(forecast_data)
+        };
+
         var data;
         function set_data() {
             data = new Data();
@@ -895,6 +995,7 @@ describe('data:', function() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
             assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+            assert(db_mock_data.hash_set.is_called, "DB hash set mock is not called!");
 
             geo_mock_data.expected_cities.forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
@@ -907,7 +1008,6 @@ describe('data:', function() {
 
                 var forecast = data.get_city_forecast(city);
                 assert(forecast, "Couldn't get city '" + city + "' forecast");
-                assert.equal(forecast.week.length, 0);
             });
 
             done();
@@ -955,6 +1055,7 @@ describe('data:', function() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
             assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+            assert(!db_mock_data.hash_set.is_called, "DB hash set mock SHOULD not called!");
 
             geo_mock_data.expected_cities.forEach((city) => {
                 assert(city in data.inner, "City '" + city + "' is not in Data");
@@ -1006,6 +1107,11 @@ describe('data:', function() {
             error: new Error('Fail to set coordinates into DB!')
         };
 
+        db_mock_data.hash_set = {
+            expected_hash: 'forecast',
+            expected_value: get_expected_result_forecast(forecast_data)
+        };
+
         var data;
         function set_data() {
             data = new Data();
@@ -1016,6 +1122,7 @@ describe('data:', function() {
             assert(geo_mock_data.is_called, "Geo mock is not called!");
             assert(db_mock_data.set.is_called, "DB set mock is not called!");
             assert(forecast_mock_data.is_called, "ForecastIO mock is not called!");
+            assert(db_mock_data.hash_set.is_called, "DB hash set mock is not called!");
 
             /* Even if we fail to set, coordinates should be in Data */
             geo_mock_data.expected_cities.forEach((city) => {
@@ -1029,7 +1136,6 @@ describe('data:', function() {
 
                 var forecast = data.get_city_forecast(city);
                 assert(forecast, "Couldn't get city '" + city + "' forecast");
-                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }

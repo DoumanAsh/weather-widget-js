@@ -119,7 +119,7 @@ module.exports = class DB {
         return new Promise((resolve, reject) => {
             this.inner.hset(hash, key, value, (err, result) => {
                 trace("inner hset. err='%s', result='%s'", err, result);
-                if (result === 'OK') {
+                if (!err) {
                     resolve();
                 }
                 else {

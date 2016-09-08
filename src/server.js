@@ -31,17 +31,24 @@ app.get('/widget', function (req, res) {
 
     trace("Widget request(city='%s', type='%s', days='%s', city_obj='%s')", city, type, days, city_obj);
 
-    if ((!city) || (!type) || (!days) || (!city_obj) || (city_obj.forecast.week.length < days)) {
+    if ((!city) || (!type) || (!days) || (!city_obj) || (!city_obj.forecast)) {
         res.status(404).render('404');
         return;
     }
 
-    res.render('widget', {
-        city: city,
-        current: city_obj.forecast.current,
-        week: city_obj.forecast.week.slice(0, days),
-        type: type
-    });
+    city_obj.forecast()
+            .then((result) => {
+                res.render('widget', {
+                    city: city,
+                    current: result.current,
+                    week: result.week.slice(0, days),
+                    type: type
+                });
+            })
+            .catch((error) => {
+                console.log("Couldn't fetch forecast info. Error='%s'", error);
+                res.status(404).render('404');
+            });
 });
 
 /* Any other page is 404 */

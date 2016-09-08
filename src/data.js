@@ -86,7 +86,7 @@ module.exports = class DB {
               trace("Got cached cities='%j'", result);
 
               this.set_coordinates(result);
-              this.init_forecast();
+              this.init_forecast(result);
           })
           .catch((err) => {
               trace('Could not get cities from DB. Error=%s', err);
@@ -97,12 +97,12 @@ module.exports = class DB {
     /**
      * Initializes forecast information.
      */
-    init_forecast() {
+    init_forecast(cities) {
         trace('Initialize forecast info');
-        this.fetch_forecast();
+        this.fetch_forecast(cities, this);
 
         /* 1 hour re-fetch */
-        setInterval(this.fetch_forecast, 3600000, this);
+        setInterval(this.fetch_forecast, 3600000, cities, this);
     }
 
     /**
@@ -129,7 +129,6 @@ module.exports = class DB {
      * @param data {Object} JSON data from ForecastIO.
      */
     set_forecast(city, data) {
-        trace('Set forecast for city %s', city);
         function day_info(forecast_io_data) {
             const current = forecast_io_data.currently;
             return {
@@ -165,10 +164,20 @@ module.exports = class DB {
             return result;
         }
 
-        this.inner[city].forecast = {
+        const forecast_data = {
             current: day_info(data),
             week: week_info(data)
         };
+
+        db.hash_set_obj('forecast', city, forecast_data)
+          .then(() => {
+              this.inner[city].forecast = function() {
+                  return db.hash_get_obj('forecast', city);
+              };
+          })
+          .catch((error) => {
+              console.log("Could not cache forecast. Error=%s", error);
+          });
     }
 
     /**
@@ -181,6 +190,9 @@ module.exports = class DB {
            .then((result) => {
                trace("Downloaded coordinates=%j", result);
 
+               this.set_coordinates(result);
+               this.init_forecast(result);
+
                db.set_obj('cities', result)
                  .then(() => {
                      trace('cached new cities');
@@ -188,9 +200,6 @@ module.exports = class DB {
                  .catch((error) => {
                      console.log("Could not cache cities. Error=%s", error);
                  });
-
-               this.set_coordinates(result);
-               this.init_forecast();
            })
            .catch((error) => {
                console.log("Could not retrieve cities. Error=%s", error);
@@ -200,14 +209,9 @@ module.exports = class DB {
     /**
      * Downloads forecast information.
      */
-    fetch_forecast(self) {
-        /* When called from time-out we pass this. */
-        if (!self) {
-            self = this;
-        }
-
-        self.get_cities().forEach((key) => {
-            const coords = self.inner[key].coordinates;
+    fetch_forecast(cities, self) {
+        Object.keys(cities).forEach((key) => {
+            const coords = cities[key];
 
             self.forecast_io.latitude(coords.lat)
                             .longitude(coords.lng)
@@ -217,7 +221,7 @@ module.exports = class DB {
                                 self.set_forecast(key, JSON.parse(res));
                             })
                             .catch((err) => {
-                                console.log(err);
+                                console.log("Couldn't get forecast info. Error=%s", err);
                             });
         });
     }
