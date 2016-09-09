@@ -14,7 +14,7 @@ Set environment variable `FORECAST_IO_API_KEY` with it for weather widget to wor
 
 Server should be up and running for back-up.
 
-## TODO
+## Definition of done
 
 - [X] Determine weather provider
 - [X] Implement server side
@@ -22,4 +22,3 @@ Server should be up and running for back-up.
     - [X] Client iframe
         - [X] Fix horizontal widget
 - [X] Supply automatic test
-    - Express routing is not tested yet...

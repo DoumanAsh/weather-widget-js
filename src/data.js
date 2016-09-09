@@ -10,7 +10,7 @@ const ForecastIO = require('forecast-io');
  *
  * Contains information about cities and their forecast.
  */
-module.exports = class DB {
+module.exports = class Data {
     /**
      * Initializes Data.
      *

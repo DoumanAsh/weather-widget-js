@@ -754,6 +754,12 @@ describe('data:', function() {
     };
     mock('forecast-io', forecast_mock);
 
+    before(function() {
+        if (!process.env.FORECAST_IO_API_KEY) {
+            process.env.FORECAST_IO_API_KEY = "1";
+        }
+    });
+
     beforeEach(function() {
     });
 
@@ -1335,25 +1341,53 @@ describe('data:', function() {
     });
 });
 
-/*TODO: cannot mock data class :( */
-/*
+
 describe('server:', function() {
     const request = require('supertest');
 
     var data_mock_inner = {
     };
 
-    function data_mock() {
-        console.log('mock');
-        return {
-            inner: data_mock_inner,
-            get_cities: function() { Object.keys(this.inner); }
-        };
+    var forecast_mock = {
+        is_called: false,
+        is_to_set: true,
+        result: undefined,
+        error: undefined
+    };
+
+    class DataMock {
+        constructor() {
+            this.inner = data_mock_inner;
+
+            if (!forecast_mock.is_to_set) {
+                return this;
+            }
+
+            Object.keys(this.inner).forEach((key) => {
+                this.inner[key] = {
+                    forecast: function() {
+                        forecast_mock.is_called = true;
+                        return new Promise((resolve, reject) => {
+                            if (forecast_mock.result) {
+                                resolve(forecast_mock.result);
+                            }
+                            else {
+                                reject(forecast_mock.error);
+                            }
+                        });
+                    }
+                };
+            });
+        }
+
+        get_cities() {
+            return Object.keys(this.inner);
+        }
     }
 
-    mock(data_class, data_mock);
-    var temp = require(data_class);
-    assert.equal(temp, data_mock);
+    before(function() {
+        mock(data_class, DataMock);
+    });
 
     after(function() {
         mock.stopAll();
@@ -1361,6 +1395,15 @@ describe('server:', function() {
 
     afterEach(function() {
         data_mock_inner = {};
+        forecast_mock = {
+            is_called: false,
+            is_to_set: true,
+            result: undefined,
+            error: undefined
+        };
+
+        delete require.cache[require.resolve(data_class)];
+        delete require.cache[require.resolve(server_path)];
     });
 
     it("Get widget configurator with cities", function(done) {
@@ -1372,10 +1415,141 @@ describe('server:', function() {
         const app = mock.reRequire(server_path);
 
         request(app).get('/')
-                    .expect(200)
-                    .expect(function(res) {
-                        console.log('%j', res);
-                    }, done);
+                    .expect(200, (err, res) => {
+                        Object.keys(data_mock_inner).forEach((city) => {
+                            let regex_str = "<option value=\"" + city + "\"( selected)*>" + city + "</option>";
+                            assert.notEqual(res.text.search(new RegExp(regex_str)), -1, "Couldn't find city " + city);
+                        });
+                        done();
+                    });
+
+    });
+
+    it("Try to get widget with missing city query", function(done) {
+        data_mock_inner = {
+            'Moscow': true,
+            'Bor': true
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?days=1&type=vertical')
+                    .expect(404, done);
+    });
+
+    it("Try to get widget with missing days query", function(done) {
+        data_mock_inner = {
+            'Moscow': true,
+            'Bor': true
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?city=Moscow&type=vertical')
+                    .expect(404, done);
+    });
+
+    it("Try to get widget with missing type query", function(done) {
+        data_mock_inner = {
+            'Moscow': true,
+            'Bor': true
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?city=Moscow&days=1')
+                    .expect(404, done);
+    });
+
+    it("Try to get widget for non-existing city", function(done) {
+        data_mock_inner = {
+            'Moscow': true,
+            'Bor': true
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?city=non-existing&type=vertical&days=1')
+                    .expect(404, done);
+    });
+
+    it("Try to get widget when forecast data is missing", function(done) {
+        data_mock_inner = {
+            'Moscow': true,
+            'Bor': true
+        };
+
+        forecast_mock.is_to_set = false;
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?days=1&type=vertical&city=Moscow')
+                    .expect(404, done);
+    });
+
+    it("Get widget", function(done) {
+        data_mock_inner = {
+            'Moscow': undefined,
+            'Bor': undefined
+        };
+        forecast_mock.result = {
+            current: {},
+            week: [
+            {
+                summary: "Today is fine day!",
+                temperature: {
+                    min: 14,
+                    max: 16
+                }
+            },
+            {
+                summary: "Tommorrow is awful day!",
+                temperature: {
+                    min: 24,
+                    max: 26
+                }
+            }
+            ],
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?days=2&type=vertical&city=Moscow')
+                    .expect(200, (err, res) => {
+                        assert.equal(err, null, "Error occured during getting widget.");
+
+                        forecast_mock.result.week.forEach((day) => {
+                            let summary_regex = "<h4>" + day.summary + "</h4>";
+                            assert.notEqual(res.text.search(new RegExp(summary_regex)), -1, "Couldn't find forecast summary " + day.summary);
+                        });
+                        done();
+                    });
+    });
+
+    it("Try to get widget", function(done) {
+        data_mock_inner = {
+            'Moscow': undefined,
+            'Bor': undefined
+        };
+
+        forecast_mock.error = new Error("Fail to get forecast");
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/widget?days=2&type=vertical&city=Moscow')
+                    .expect(404, done);
+    });
+
+    it("Get non-existing page", function(done) {
+        data_mock_inner = {
+            'Moscow': undefined,
+            'Bor': undefined
+        };
+
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/1')
+                    .expect(404, done);
+
     });
 });
-*/
