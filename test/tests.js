@@ -8,13 +8,13 @@ global.__from_root = function(...args) {
     return path.join(global.__root_dir, ...args);
 };
 
-const custom_utils = './../src/utils/logger.js';
 const geo_path = '../src/utils/geo.js';
 const db_path = '../src/utils/db.js';
 const data_class = './../src/data.js';
 const server_path = './../src/server.js';
 
 describe('logger:', function() {
+    const custom_utils = './../src/utils/logger.js';
     const old_console_info = console.info;
 
     beforeEach(function() {
@@ -846,10 +846,6 @@ describe('data:', function() {
         };
     }
 
-
-    function assert_w_default_forecast_data() {
-    }
-
     function get_expected_result_forecast(default_data) {
         var result = {
             current: {
@@ -1227,7 +1223,6 @@ describe('data:', function() {
 
                 var forecast = data.get_city_forecast(city);
                 assert(forecast, "Couldn't get city '" + city + "' forecast");
-                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }
@@ -1285,7 +1280,6 @@ describe('data:', function() {
 
                 var forecast = data.get_city_forecast(city);
                 assert(forecast, "Couldn't get city '" + city + "' forecast");
-                assert_w_default_forecast_data(forecast_data, forecast);
             });
             done();
         }
@@ -1550,6 +1544,14 @@ describe('server:', function() {
 
         request(app).get('/1')
                     .expect(404, done);
+
+    });
+
+    it("Get stylus style", function(done) {
+        const app = mock.reRequire(server_path);
+
+        request(app).get('/style.css')
+                    .expect(200, done);
 
     });
 });
